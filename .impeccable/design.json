@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-31T07:49:00.000Z",
+  "title": "Design System: 听风实时流",
+  "extensions": {
+    "colorMeta": {
+      "ground-black": {
+        "role": "neutral",
+        "displayName": "机架黑",
+        "canonical": "#0d0f11",
+        "tonalRamp": ["#0d0f11", "#24272a", "#3e4246", "#5b6064", "#7b8084", "#a0a4a6", "#c9cbcc", "#f2f2f1"]
+      },
+      "console-black": {
+        "role": "neutral",
+        "displayName": "控制台黑",
+        "canonical": "#17191c",
+        "tonalRamp": ["#111315", "#282b2f", "#42464a", "#5f6468", "#7f8488", "#a3a7aa", "#cacccd", "#f2f2f1"]
+      },
+      "raised-black": {
+        "role": "neutral",
+        "displayName": "抬升黑",
+        "canonical": "#202328",
+        "tonalRamp": ["#14171b", "#2b2f35", "#464b52", "#626870", "#81878e", "#a5a9ae", "#ccced1", "#f2f3f4"]
+      },
+      "hairline-gray": {
+        "role": "neutral",
+        "displayName": "发丝灰",
+        "canonical": "#35393f",
+        "tonalRamp": ["#181b1f", "#30343a", "#4a4f56", "#666c73", "#858a90", "#a7abad", "#cdced0", "#f2f2f2"]
+      },
+      "strong-line-gray": {
+        "role": "neutral",
+        "displayName": "强分隔灰",
+        "canonical": "#555a62",
+        "tonalRamp": ["#1d2024", "#373b42", "#525860", "#6e747c", "#8d9299", "#acb0b5", "#d0d2d4", "#f3f3f4"]
+      },
+      "paper-white": {
+        "role": "neutral",
+        "displayName": "纸白",
+        "canonical": "#f1f0ea",
+        "tonalRamp": ["#24231f", "#41403a", "#5f5e56", "#7f7d74", "#9f9d93", "#bfbdB4", "#deddd5", "#f1f0ea"]
+      },
+      "utility-gray": {
+        "role": "neutral",
+        "displayName": "工具灰",
+        "canonical": "#aaa9a2",
+        "tonalRamp": ["#23231f", "#3f3f3a", "#5c5b55", "#797871", "#97958e", "#b4b2ab", "#d2d0ca", "#efeee9"]
+      },
+      "launch-red": {
+        "role": "primary",
+        "displayName": "发射红",
+        "canonical": "#ff5b4d",
+        "tonalRamp": ["#42110d", "#6b1e17", "#942a22", "#bd382e", "#e54a3f", "#ff7468", "#ffa9a2", "#ffe0dd"]
+      },
+      "signal-orange": {
+        "role": "primary",
+        "displayName": "信号橙",
+        "canonical": "#ff9d42",
+        "tonalRamp": ["#3d2109", "#673710", "#914d18", "#bb6522", "#e57f2e", "#ffab5b", "#ffd0a2", "#fff0dc"]
+      },
+      "bank-yellow": {
+        "role": "secondary",
+        "displayName": "通道黄",
+        "canonical": "#f5d768",
+        "tonalRamp": ["#382e0b", "#5e4f13", "#85711e", "#ad952d", "#d5ba43", "#f5d768", "#fae9a5", "#fff7dc"]
+      },
+      "telegram-blue": {
+        "role": "secondary",
+        "displayName": "电报码蓝",
+        "canonical": "#6ba9ed",
+        "tonalRamp": ["#102941", "#1c4770", "#2d679e", "#4387cb", "#6ba9ed", "#98c3f2", "#c4dcf7", "#edf6fd"]
+      },
+      "chain-green": {
+        "role": "tertiary",
+        "displayName": "链路绿",
+        "canonical": "#72d48a",
+        "tonalRamp": ["#12351c", "#205a30", "#318047", "#47a65f", "#72d48a", "#9ee2ae", "#c8efd1", "#effaf2"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "最新预警",
+        "purpose": "第一条实时事件的标题，建立首屏焦点。"
+      },
+      "title": {
+        "displayName": "通道标题",
+        "purpose": "历史事件标题与主要动作。"
+      },
+      "body": {
+        "displayName": "预警正文",
+        "purpose": "事件说明与安全提示。"
+      },
+      "label": {
+        "displayName": "控制标签",
+        "purpose": "来源、筛选、状态和作者。"
+      },
+      "data": {
+        "displayName": "测量数据",
+        "purpose": "合约地址、毫秒、时间与计数。"
+      }
+    },
+    "shadows": [
+      {
+        "name": "toast-float",
+        "value": "0 8px 22px rgba(0, 0, 0, 0.42)",
+        "purpose": "只用于短暂反馈浮层；常驻控件保持贴合机架。"
+      }
+    ],
+    "motion": [
+      {
+        "name": "live-chase",
+        "value": "1.6s steps(1, end) infinite",
+        "purpose": "十六格顶部追逐灯；减少动态时停在第一个红灯。"
+      },
+      {
+        "name": "loading-spin",
+        "value": "0.85s linear infinite",
+        "purpose": "保存、连接和打开交易标的时的加载图标。"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact-sidepanel",
+        "value": "370px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Trade Key",
+      "kind": "button",
+      "refersTo": "trade-key",
+      "description": "最新可交易事件的唯一主动作。",
+      "html": "<button class=\"ds-trade-key\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M13 2 3 14h8l-1 8 11-13h-8z\"/></svg><span>去交易</span><kbd>↵</kbd></button>",
+      "css": ".ds-trade-key{display:grid;grid-template-columns:18px 1fr 24px;align-items:center;gap:8px;width:100%;height:48px;padding:0 10px 0 12px;border:0;border-radius:3px;color:#180b09;background:#ff5b4d;font:820 14px/1.35 'Noto Sans SC Variable',sans-serif}.ds-trade-key svg{width:18px;fill:currentColor}.ds-trade-key kbd{display:grid;place-items:center;width:24px;height:24px;border:1px solid rgba(0,0,0,.45);border-radius:2px}.ds-trade-key:hover{background:#f5d768}.ds-trade-key:focus-visible{outline:2px solid #f5d768;outline-offset:2px}"
+    },
+    {
+      "name": "Source Bank",
+      "kind": "nav",
+      "refersTo": "source-filter-active",
+      "description": "五列连续来源筛选，选中项占据完整黄色单元。",
+      "html": "<nav class=\"ds-source-bank\"><button class=\"is-active\">全部 <span>4</span></button><button>X <span>1</span></button><button>TG <span>1</span></button><button>Fomo <span>0</span></button><button>链上 <span>1</span></button></nav>",
+      "css": ".ds-source-bank{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:#35393f}.ds-source-bank button{height:42px;border:0;color:#aaa9a2;background:#17191c;font:700 10px/1 'Noto Sans SC Variable',sans-serif}.ds-source-bank button.is-active{color:#08090a;background:#f5d768}.ds-source-bank span{display:inline-block;min-width:17px;border:1px solid currentColor;border-radius:8px;font:9px/1.2 Consolas,monospace}.ds-source-bank button:focus-visible{outline:2px solid #f5d768;outline-offset:-3px}"
+    },
+    {
+      "name": "Console Icon Key",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "暂停、提示音和设置使用的方形机架键。",
+      "html": "<button class=\"ds-icon-key\" aria-label=\"设置\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"3\" fill=\"none\"/><path d=\"M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M19 5l-2 2M7 17l-2 2\"/></svg></button>",
+      "css": ".ds-icon-key{display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid #555a62;border-radius:3px;color:#aaa9a2;background:#121416}.ds-icon-key svg{width:18px;stroke:currentColor;stroke-width:1.8;stroke-linecap:square}.ds-icon-key:hover{color:#f1f0ea;background:#202328}.ds-icon-key:focus-visible{outline:2px solid #f5d768;outline-offset:2px}"
+    },
+    {
+      "name": "Gateway Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "连接地址、令牌与交易模板使用的紧凑数据字段。",
+      "html": "<label class=\"ds-field\"><span>WebSocket 地址</span><input value=\"wss://gateway.example.com/v1/stream\" /></label>",
+      "css": ".ds-field{display:grid;gap:6px;color:#aaa9a2;font:400 10px/1 'Noto Sans SC Variable',sans-serif}.ds-field input{height:39px;padding:0 10px;border:1px solid #555a62;border-radius:3px;color:#f1f0ea;background:#111315;font:400 10px/1.2 Consolas,monospace;caret-color:#f5d768}.ds-field input:focus-visible{outline:2px solid #f5d768;outline-offset:2px}"
+    },
+    {
+      "name": "Alert Channel",
+      "kind": "custom",
+      "refersTo": "alert-channel",
+      "description": "来源键、事件内容、标的条与交易键组成的实时通道。",
+      "html": "<article class=\"ds-alert\"><div class=\"ds-source\">X</div><div class=\"ds-alert-body\"><small>@market_watcher · 上游 260ms</small><h2>新钱包连续买入，15 秒内完成第三笔</h2><p>同一资金源拆分进入，交易前请核验。</p><code>WIND · 8oQGmV2fh…Prdemo</code></div></article>",
+      "css": ".ds-alert{display:grid;grid-template-columns:44px 1fr;min-height:210px;color:#f1f0ea;background:#17191c;border-bottom:1px solid #35393f}.ds-source{display:grid;place-items:start center;padding-top:14px;border-right:1px solid #35393f;color:#08090a;background:#101214;font:900 10px/1 'Noto Sans SC Variable',sans-serif}.ds-source:before{content:'X';display:grid;place-items:center;width:26px;height:26px;border-radius:3px;background:#f1f0ea}.ds-alert-body{padding:14px}.ds-alert small{color:#aaa9a2}.ds-alert h2{max-width:22ch;margin:10px 0 0;font:820 24px/1.12 'Noto Sans SC Variable',sans-serif}.ds-alert p{color:#aaa9a2;font:400 11px/1.48 'Noto Sans SC Variable',sans-serif}.ds-alert code{display:block;padding:10px 0;border-top:1px solid #35393f;border-bottom:1px solid #35393f;color:#f1f0ea;font:400 9px/1.2 Consolas,monospace}"
+    }
+  ],
+  "narrative": {
+    "northStar": "实时触发台",
+    "overview": "听风实时流借用广播 cart machine 与节奏机的操作逻辑：每条新信号进入一个明确通道，最新通道获得更大的读数与一块可立即按下的交易键。它是夜间盯盘环境里的实体控制面，不是被动的信息仪表盘。系统以高密度、硬分隔和少量大色块建立速度感。装饰只来自真实操作语法：十六格跑灯表达连接仍在推进，方形来源键表达信号通道，红色大键表达一次明确的用户动作。",
+    "keyCharacteristics": [
+      "哑光黑控制台底色与一像素金属灰分隔。",
+      "最新事件扩大，历史事件压缩，但沿用同一通道结构。",
+      "红、橙、黄承担动作、信号和选择；蓝、绿只标记来源。",
+      "自托管 Noto Sans SC Variable 保证中文跨机器一致。",
+      "唯一持续动效是顶部十六格追逐灯，并尊重减少动态设置。"
+    ],
+    "rules": [
+      {
+        "name": "The Signal Area Rule",
+        "body": "彩色必须覆盖一个完整的可识别状态面，不把同一强调色散成无意义的小装饰。",
+        "section": "colors"
+      },
+      {
+        "name": "The Red Means Launch Rule",
+        "body": "发射红只属于最新可交易事件的主动作；历史交易键回落为纸白。",
+        "section": "colors"
+      },
+      {
+        "name": "The One Expanded Headline Rule",
+        "body": "同一视口只有最新事件使用 Display；其他事件保持 Title，避免整条实时流同时喊叫。",
+        "section": "typography"
+      },
+      {
+        "name": "The Flush Console Rule",
+        "body": "常驻控件与事件贴合机架；边框和色阶负责深度，不用发光或玻璃效果。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do 让最新事件和它的交易键成为第一视口的焦点。",
+      "Do 保留来源、发生时间、上游延迟、合约地址和链名。",
+      "Do 用完整按键面表达选中与执行状态。",
+      "Do 在 320px 宽度维持五列来源筛选和无横向滚动。",
+      "Do 为每个颜色状态同时提供文字、图标或位置线索。"
+    ],
+    "donts": [
+      "Don't 把事件改成漂浮圆角卡片或叠卡。",
+      "Don't 使用霓虹发光、渐变、玻璃模糊或装饰网格。",
+      "Don't 让普通历史事件与最新事件使用同样强度的红色交易键。",
+      "Don't 用等宽字体装饰普通正文。",
+      "Don't 在交易键旁添加会与主动作争夺注意力的第二个彩色主按钮。"
+    ]
+  }
+}
