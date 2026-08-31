@@ -601,4 +601,11 @@ describe('stream config', () => {
       gmgnUrlTemplate: 'https://gmgn.example/{chain}/{address}',
     });
   });
+
+  it('normalizes supported theme preferences and rejects unknown values', () => {
+    expect(normalizeStreamConfig({ theme: 'dark' }).theme).toBe('dark');
+    expect(normalizeStreamConfig({ theme: 'light' }).theme).toBe('light');
+    expect(normalizeStreamConfig({ theme: 'system' }).theme).toBe('system');
+    expect(normalizeStreamConfig({ theme: 'midnight' }).theme).toBe(DEFAULT_CONFIG.theme);
+  });
 });

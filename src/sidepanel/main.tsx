@@ -9,6 +9,8 @@ import {
   Clipboard,
   Coins,
   ExternalLink,
+  Monitor,
+  Moon,
   Network,
   Pause,
   Play,
@@ -16,6 +18,7 @@ import {
   RefreshCw,
   Settings2,
   ShieldCheck,
+  Sun,
   UsersRound,
   Zap,
 } from 'lucide-react';
@@ -29,6 +32,7 @@ import {
   type RuntimeSnapshot,
   type SessionState,
   type StreamConfig,
+  type ThemePreference,
   type TokenRef,
   type TradeTarget,
   type WindEvent,
@@ -168,6 +172,35 @@ const FILTERS: Array<{ value: SourceFilter; label: string }> = [
   { value: 'pump', label: 'Pump' },
   { value: 'chain', label: '链上' },
 ];
+
+const THEME_OPTIONS = [
+  { value: 'system', label: '跟随系统', Icon: Monitor },
+  { value: 'light', label: '浅色', Icon: Sun },
+  { value: 'dark', label: '深色', Icon: Moon },
+] satisfies Array<{ value: ThemePreference; label: string; Icon: typeof Monitor }>;
+
+function useResolvedTheme(preference: ThemePreference): 'light' | 'dark' {
+  const [systemDark, setSystemDark] = useState(() =>
+    window.matchMedia('(prefers-color-scheme: dark)').matches,
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const sync = () => setSystemDark(media.matches);
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, []);
+
+  const resolved = preference === 'system' ? (systemDark ? 'dark' : 'light') : preference;
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = resolved;
+    document.documentElement.style.colorScheme = resolved;
+  }, [resolved]);
+
+  return resolved;
+}
 
 const TRADE_TARGET_META: Record<TradeTarget, { label: string }> = {
   debot: { label: 'deBot' },
@@ -515,10 +548,12 @@ function SettingsView({
   snapshot,
   onBack,
   onSaved,
+  onThemePreview,
 }: {
   snapshot: RuntimeSnapshot;
   onBack: () => void;
   onSaved: (snapshot: RuntimeSnapshot) => void;
+  onThemePreview: (theme: ThemePreference) => void;
 }) {
   const [draft, setDraft] = useState<StreamConfig>(snapshot.config);
   const [saving, setSaving] = useState(false);
@@ -574,6 +609,28 @@ function SettingsView({
       </header>
 
       <form onSubmit={save}>
+        <section className="settings-section appearance-section">
+          <h2>外观</h2>
+          <div className="theme-options" role="group" aria-label="界面主题">
+            {THEME_OPTIONS.map(({ value, label, Icon }) => (
+              <button
+                key={value}
+                type="button"
+                className={draft.theme === value ? 'is-active' : ''}
+                aria-pressed={draft.theme === value}
+                onClick={() => {
+                  setDraft((current) => ({ ...current, theme: value }));
+                  onThemePreview(value);
+                }}
+              >
+                <Icon size={15} aria-hidden="true" />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+          <p className="theme-help">跟随系统会随设备外观自动切换；深色主题适合低光盯盘。</p>
+        </section>
+
         <section className="settings-section">
           <h2>听风页面桥接</h2>
           <div className="fixed-endpoint">
@@ -698,7 +755,9 @@ function App() {
   } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [liveAnnouncement, setLiveAnnouncement] = useState('');
+  const [themePreview, setThemePreview] = useState<ThemePreference | null>(null);
   const previousEventId = useRef<string | null>(snapshot.events[0]?.id ?? null);
+  const resolvedTheme = useResolvedTheme(themePreview ?? snapshot.config.theme);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(Date.now()), 1_000);
@@ -834,12 +893,41 @@ function App() {
     }
   };
 
+  const toggleTheme = async () => {
+    const previous = snapshot;
+    const nextConfig: StreamConfig = {
+      ...snapshot.config,
+      theme: resolvedTheme === 'dark' ? 'light' : 'dark',
+    };
+    setSnapshot((current) => ({ ...current, config: nextConfig }));
+    if (!isExtension) return;
+    try {
+      const next = await sendCommand<RuntimeSnapshot>({
+        type: 'config:save',
+        config: nextConfig,
+      });
+      setSnapshot(next);
+    } catch (cause) {
+      setSnapshot(previous);
+      setNotice(cause instanceof Error ? cause.message : String(cause));
+    }
+  };
+
+  const closeSettings = () => {
+    setThemePreview(null);
+    setView('stream');
+  };
+
   if (view === 'settings') {
     return (
       <SettingsView
         snapshot={snapshot}
-        onBack={() => setView('stream')}
-        onSaved={setSnapshot}
+        onBack={closeSettings}
+        onSaved={(next) => {
+          setSnapshot(next);
+          setThemePreview(null);
+        }}
+        onThemePreview={setThemePreview}
       />
     );
   }
@@ -870,6 +958,15 @@ function App() {
               <small>{snapshot.connection.latencyMs}ms</small>
             )}
             {live && !needsLogin ? <Pause size={13} /> : <Play size={13} />}
+          </button>
+          <button
+            className="icon-key"
+            type="button"
+            onClick={() => void toggleTheme()}
+            aria-label={resolvedTheme === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
+            title={resolvedTheme === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
+          >
+            {resolvedTheme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
           </button>
           <button
             className="icon-key"

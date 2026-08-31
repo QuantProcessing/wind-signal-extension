@@ -34,4 +34,4 @@ pnpm build
 4. Service Worker 控制台应出现 `页面 WebSocket 握手完成 { mode: 'user', watchCount: ... }`。
 5. 新事件到达时会先打印 `页面 WS ↓ 收到原始消息`，随后打印“事件已解析并送入侧边栏”，卡片同步出现。
 
-设置页可分别修改 deBot 与 GMGN 的 URL 模板，支持 `{chain}`、`{address}`、`{symbol}` 占位符。
+设置页可分别修改 deBot 与 GMGN 的 URL 模板，支持 `{chain}`、`{address}`、`{symbol}` 占位符；外观支持跟随系统、浅色和深色三种模式，页头也可一键切换明暗主题。

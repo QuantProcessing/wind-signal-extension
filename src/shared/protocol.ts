@@ -57,11 +57,14 @@ export interface WindEvent {
   sourceUrl?: string;
 }
 
+export type ThemePreference = 'system' | 'light' | 'dark';
+
 export interface StreamConfig {
   debotUrlTemplate: string;
   gmgnUrlTemplate: string;
   reuseTradingTab: boolean;
   soundEnabled: boolean;
+  theme: ThemePreference;
 }
 
 export interface ConnectionState {
@@ -106,6 +109,7 @@ export const DEFAULT_CONFIG: StreamConfig = {
   gmgnUrlTemplate: 'https://gmgn.ai/{chain}/token/{address}',
   reuseTradingTab: true,
   soundEnabled: true,
+  theme: 'system',
 };
 
 export const EMPTY_CONNECTION: ConnectionState = {
@@ -423,6 +427,10 @@ export function normalizeStreamConfig(value: unknown): StreamConfig {
       typeof value.soundEnabled === 'boolean'
         ? value.soundEnabled
         : DEFAULT_CONFIG.soundEnabled,
+    theme:
+      value.theme === 'light' || value.theme === 'dark' || value.theme === 'system'
+        ? value.theme
+        : DEFAULT_CONFIG.theme,
   };
 }
 
