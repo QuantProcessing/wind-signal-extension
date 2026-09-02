@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { createRoot } from 'react-dom/client';
+import '@fontsource-variable/fira-code';
 import '@fontsource-variable/noto-sans-sc';
 import {
   ArrowLeft,

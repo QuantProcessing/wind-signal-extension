@@ -52,46 +52,50 @@ colors:
   dark-mint: "#4fd8a4"
 typography:
   headline:
-    fontFamily: "'Noto Sans SC Variable', 'Microsoft YaHei UI', 'PingFang SC', sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Noto Sans SC Variable', sans-serif"
     fontSize: "17px"
     fontWeight: 760
     lineHeight: 1.1
     letterSpacing: "-0.02em"
   title:
-    fontFamily: "'Noto Sans SC Variable', 'Microsoft YaHei UI', 'PingFang SC', sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Noto Sans SC Variable', sans-serif"
     fontSize: "15px"
     fontWeight: 750
     lineHeight: 1.38
     letterSpacing: "-0.018em"
   title-featured:
-    fontFamily: "'Noto Sans SC Variable', 'Microsoft YaHei UI', 'PingFang SC', sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Noto Sans SC Variable', sans-serif"
     fontSize: "17px"
     fontWeight: 790
     lineHeight: 1.38
     letterSpacing: "-0.018em"
   body:
-    fontFamily: "'Noto Sans SC Variable', 'Microsoft YaHei UI', 'PingFang SC', sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Noto Sans SC Variable', sans-serif"
     fontSize: "11px"
     lineHeight: 1.55
   label:
-    fontFamily: "'Noto Sans SC Variable', 'Microsoft YaHei UI', 'PingFang SC', sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Noto Sans SC Variable', sans-serif"
     fontSize: "10px"
     fontWeight: 650
   metadata:
-    fontFamily: "'Noto Sans SC Variable', 'Microsoft YaHei UI', 'PingFang SC', sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Noto Sans SC Variable', sans-serif"
     fontSize: "12px"
     fontWeight: 740
   micro:
-    fontFamily: "'Noto Sans SC Variable', 'Microsoft YaHei UI', 'PingFang SC', sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Noto Sans SC Variable', sans-serif"
     fontSize: "8px"
     fontWeight: 650
+  caption:
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Noto Sans SC Variable', sans-serif"
+    fontSize: "9px"
+    fontWeight: 620
   action:
-    fontFamily: "'Noto Sans SC Variable', 'Microsoft YaHei UI', 'PingFang SC', sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Noto Sans SC Variable', sans-serif"
     fontSize: "11px"
     fontWeight: 740
   data:
-    fontFamily: "Consolas, 'SFMono-Regular', monospace"
-    fontSize: "9px"
+    fontFamily: "'SF Mono', 'SFMono-Regular', 'Fira Code Variable', 'Fira Code', ui-monospace, 'Cascadia Code', Consolas, monospace"
+    fontSize: "10px"
 rounded:
   micro: "7px"
   sm: "8px"
@@ -215,13 +219,13 @@ components:
 
 ## Typography
 
-**Display Font:** Noto Sans SC Variable（Microsoft YaHei UI、PingFang SC、sans-serif 回退）
+**Display Font:** macOS 系统无衬线栈（SF Pro Text / PingFang SC），Windows 依次回退到内置 Noto Sans SC Variable、Segoe UI。
 
-**Body Font:** Noto Sans SC Variable（同上）
+**Body Font:** 与 Display Font 共用系统无衬线栈，保证中英文正文使用平台原生字形与度量。
 
-**Label/Mono Font:** Consolas / SFMono-Regular（仅用于地址与端点等数据）
+**Data/Mono Font:** SF Mono / 内置 Fira Code Variable（Cascadia Code、Consolas 回退），仅用于金额、价格、市值、时间、计数、地址与端点。
 
-**Character:** 中文无衬线字形紧凑但不机械，以 8–17px 的侧栏尺度和明确重量差组织扫描；数据使用等宽字体稳定地址长度。时间和计数使用 tabular numerals。
+**Character:** 中文无衬线字形紧凑但不机械，以 8–17px 的侧栏尺度和明确重量差组织扫描；关键行情值使用 10–12px 等宽字体与 tabular numerals，保证纵向比较和远距离辨读。
 
 ### Hierarchy
 
@@ -231,7 +235,7 @@ components:
 - **Body:** 11px、1.55 行高，用于事件说明；允许任意长字符串换行。
 - **Identity:** 15px、790，用于作者名；账号使用 10px、520，形成类似听风的“姓名 + @账号”双层身份块。
 - **Label:** 8–12px，用于来源、筛选、状态、表单和操作，借助字重而不是全大写建立层级。
-- **Data:** 8–10px 等宽或等宽数字，用于合约、端点、时间、延迟和计数。
+- **Data:** 9–12px 等宽或等宽数字；行情数值不低于 11px，合约、端点、时间与计数不低于 9px。
 
 ### Named Rules
 

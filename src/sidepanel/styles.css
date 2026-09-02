@@ -1,7 +1,11 @@
 :root {
   color-scheme: light;
-  font-family:
-    "Noto Sans SC Variable", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", "PingFang SC",
+    "Noto Sans SC Variable", sans-serif;
+  --font-data: "SF Mono", "SFMono-Regular", "Fira Code Variable", "Fira Code",
+    ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-family: var(--font-ui);
   color: var(--ink);
   background: var(--canvas);
   font-synthesis: none;
@@ -209,6 +213,8 @@ body {
   min-width: 320px;
   overflow: hidden;
   background: var(--canvas);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button,
@@ -390,6 +396,7 @@ textarea::placeholder {
 
 .status-key small {
   color: var(--ink-faint);
+  font-family: var(--font-data);
   font-size: 9px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -531,6 +538,7 @@ textarea::placeholder {
   border-radius: 8px;
   color: var(--ink-faint);
   background: var(--filter-count-bg);
+  font-family: var(--font-data);
   font-size: 9px;
   font-variant-numeric: tabular-nums;
 }
@@ -887,6 +895,7 @@ textarea::placeholder {
 
 .event-clock time {
   color: var(--clock-ink);
+  font-family: var(--font-data);
   font-size: 10px;
   font-weight: 620;
   font-variant-numeric: tabular-nums;
@@ -921,7 +930,10 @@ textarea::placeholder {
 
 .trade-amount {
   color: var(--source-ink);
+  font-family: var(--font-data);
+  font-weight: 690;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
 }
 
 @media (max-width: 379px) {
@@ -994,7 +1006,7 @@ textarea::placeholder {
 
 .trade-metrics dt {
   color: var(--ink-faint);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 620;
 }
 
@@ -1002,9 +1014,11 @@ textarea::placeholder {
   margin-top: 2px;
   overflow: hidden;
   color: var(--ink);
-  font-size: 10px;
-  font-weight: 740;
+  font-family: var(--font-data);
+  font-size: 11px;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1212,8 +1226,9 @@ textarea::placeholder {
 
 .target-counts dd {
   color: var(--ink);
-  font-size: 9px;
-  font-weight: 730;
+  font-family: var(--font-data);
+  font-size: 10px;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1292,8 +1307,9 @@ textarea::placeholder {
   margin: 2px 0 0;
   overflow: hidden;
   color: var(--consensus-deep);
+  font-family: var(--font-data);
   font-size: 12px;
-  font-weight: 780;
+  font-weight: 690;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
   text-overflow: ellipsis;
@@ -1355,7 +1371,7 @@ textarea::placeholder {
   border-radius: 7px;
   color: var(--fomo-member-ink);
   background: var(--fomo-member-wash);
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 800;
 }
 
@@ -1374,7 +1390,9 @@ textarea::placeholder {
 
 .consensus-participants strong {
   color: var(--consensus-amount);
-  font-size: 9px;
+  font-family: var(--font-data);
+  font-size: 10px;
+  font-weight: 620;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -1496,7 +1514,7 @@ textarea::placeholder {
 
 .asset-market-metrics dt {
   color: var(--ink-faint);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 620;
 }
 
@@ -1504,9 +1522,11 @@ textarea::placeholder {
   margin-top: 2px;
   overflow: hidden;
   color: var(--ink);
-  font-size: 10px;
-  font-weight: 740;
+  font-family: var(--font-data);
+  font-size: 11px;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1531,8 +1551,11 @@ textarea::placeholder {
 .contract-row code {
   overflow: hidden;
   color: var(--contract-ink);
-  font-family: Consolas, "SFMono-Regular", monospace;
-  font-size: 9px;
+  font-family: var(--font-data);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-weight: 520;
+  letter-spacing: -0.018em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1652,7 +1675,7 @@ textarea::placeholder {
 
 .empty-feed strong {
   color: var(--ink);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .empty-feed p {
@@ -1996,7 +2019,7 @@ textarea::placeholder {
 .grok-context code {
   overflow: hidden;
   color: var(--contract-ink);
-  font-family: Consolas, "SFMono-Regular", monospace;
+  font-family: var(--font-data);
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2167,7 +2190,7 @@ textarea::placeholder {
   border-radius: 7px;
   color: var(--mint-deep);
   background: var(--surface-soft);
-  font-family: Consolas, "SFMono-Regular", monospace;
+  font-family: var(--font-data);
   font-size: 0.92em;
 }
 
@@ -2490,7 +2513,7 @@ textarea::placeholder {
 }
 
 .settings-header h1 {
-  font-size: 16px;
+  font-size: 17px;
 }
 
 .settings-view form {
@@ -2596,7 +2619,7 @@ textarea::placeholder {
   border-radius: 10px;
   color: var(--ink);
   background: var(--input-bg);
-  font-family: Consolas, "SFMono-Regular", monospace;
+  font-family: var(--font-data);
   font-size: 10px;
   caret-color: var(--mint-deep);
 }
@@ -2635,7 +2658,7 @@ textarea::placeholder {
 .fixed-endpoint code {
   overflow: hidden;
   color: var(--mint-deep);
-  font-family: Consolas, "SFMono-Regular", monospace;
+  font-family: var(--font-data);
   font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;

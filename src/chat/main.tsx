@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import '@fontsource-variable/fira-code';
 import '@fontsource-variable/noto-sans-sc';
 import { GrokWorkspace } from '../grok/GrokWorkspace';
 import {
