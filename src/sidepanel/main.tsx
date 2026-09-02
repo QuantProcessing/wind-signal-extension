@@ -1362,7 +1362,7 @@ function App() {
         <div className="brand">
           <span className="brand-mark"><Radio size={18} /></span>
           <div>
-            <h1>听风实时流</h1>
+            <h1>Wind Signal</h1>
             <span>{isExtension ? '预警已接入交易侧栏' : '合成事件 · 本地预览'}</span>
           </div>
         </div>

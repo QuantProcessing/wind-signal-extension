@@ -1,4 +1,4 @@
-# 听风实时流
+# Wind Signal
 
 Chrome MV3 侧边栏扩展。它复用已登录听风页面的实时 WebSocket，把预警中的交易标的提取出来，并通过 deBot、GMGN 两个轻量入口打开或复用交易页；也可以使用自己的 Sub2API Key，在侧栏或独立窗口中向 Grok 调查代币叙事。
 

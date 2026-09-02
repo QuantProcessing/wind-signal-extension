@@ -5,7 +5,7 @@ primary_target: "src/sidepanel/main.tsx"
 related_targets: ["src/sidepanel/styles.css", "src/background/index.ts"]
 ---
 
-# 听风实时流侧栏
+# Wind Signal 侧栏
 
 - **Scope and mode:** Chrome MV3 side panel；Operate；支持 320–520 CSS px，输出入口为 `sidepanel.html`。
 - **Thesis:** 每条预警都像一张安静、可执行的交易单；拒绝终端 cosplay 和超大警报控制。

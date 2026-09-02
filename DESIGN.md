@@ -1,5 +1,5 @@
 ---
-name: "听风实时流"
+name: "Wind Signal"
 description: "把实时预警组织成安静、可核验、可立即行动的明暗双主题信号卡片流"
 colors:
   canvas-warm: "#f5f6f2"
@@ -158,7 +158,7 @@ components:
     width: "100%"
 ---
 
-# Design System: 听风实时流
+# Design System: Wind Signal
 
 ## Overview
 
