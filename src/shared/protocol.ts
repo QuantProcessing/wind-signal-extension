@@ -16,6 +16,51 @@ export interface TokenRef {
   symbol?: string;
   name?: string;
   imageUrl?: string;
+  quote?: TokenQuoteRef;
+}
+
+export interface TokenQuoteRef {
+  marketCapUsd?: number;
+  volume24hUsd?: number;
+  priceUsd?: number;
+}
+
+export interface TradeRef {
+  tokenAmount?: number;
+  priceUsd?: number;
+  marketCapUsd?: number;
+  cashSymbol?: string;
+  route?: string;
+  venue?: string;
+}
+
+export interface SocialMediaRef {
+  type?: string;
+  url: string;
+  posterUrl?: string;
+}
+
+export interface SocialReferenceRef {
+  kind: 'reply' | 'quote' | 'repost' | 'reference';
+  author?: string;
+  authorHandle?: string;
+  avatarUrl?: string;
+  text?: string;
+  translation?: string;
+  media: SocialMediaRef[];
+}
+
+export interface SocialTargetRef {
+  name?: string;
+  handle?: string;
+  avatarUrl?: string;
+  bannerUrl?: string;
+  bio?: string;
+  bioTranslation?: string;
+  followers?: number;
+  following?: number;
+  verified?: boolean;
+  profileUrl?: string;
 }
 
 export interface ConsensusParticipant {
@@ -50,10 +95,13 @@ export interface WindEvent {
   title: string;
   body?: string;
   amountUsd?: number;
+  trade?: TradeRef;
   importance: Importance;
   token?: TokenRef;
   consensus?: ConsensusRef;
   position?: PositionRef;
+  reference?: SocialReferenceRef;
+  target?: SocialTargetRef;
   sourceUrl?: string;
 }
 
@@ -62,9 +110,35 @@ export type ThemePreference = 'system' | 'light' | 'dark';
 export interface StreamConfig {
   debotUrlTemplate: string;
   gmgnUrlTemplate: string;
+  sub2ApiBaseUrl: string;
+  grokModel: string;
   reuseTradingTab: boolean;
   soundEnabled: boolean;
   theme: ThemePreference;
+}
+
+export type GrokChatRole = 'user' | 'assistant';
+
+export interface GrokChatMessage {
+  role: GrokChatRole;
+  content: string;
+}
+
+export interface GrokChatResult {
+  text: string;
+  citations: string[];
+}
+
+export interface GrokChatContext {
+  eventId?: string;
+  symbol?: string;
+  name?: string;
+  chain?: string;
+  address?: string;
+  sourceLabel?: string;
+  authorHandle?: string;
+  title?: string;
+  body?: string;
 }
 
 export interface ConnectionState {
@@ -97,6 +171,8 @@ export type PanelCommand =
   | { type: 'demo:inject' }
   | { type: 'wind:open' }
   | { type: 'trade:open'; target: TradeTarget; event: WindEvent }
+  | { type: 'grok:chat'; messages: GrokChatMessage[] }
+  | { type: 'grok:window:open'; context?: GrokChatContext }
   | { type: 'events:clear' };
 
 export type BackgroundPush =
@@ -107,6 +183,8 @@ export type BackgroundPush =
 export const DEFAULT_CONFIG: StreamConfig = {
   debotUrlTemplate: 'https://debot.ai/token/{chain}/{address}',
   gmgnUrlTemplate: 'https://gmgn.ai/{chain}/token/{address}',
+  sub2ApiBaseUrl: '',
+  grokModel: 'grok-4.5',
   reuseTradingTab: true,
   soundEnabled: true,
   theme: 'system',
@@ -130,6 +208,8 @@ export const EMPTY_CONNECTION: ConnectionState = {
 export const STORAGE_KEYS = {
   config: 'windStreamConfig',
   events: 'windStreamEvents',
+  grokApiKey: 'grokApiKey',
+  grokConversations: 'grokConversations',
 } as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -172,6 +252,167 @@ function httpUrlValue(value: unknown): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+function mediaValues(value: unknown): SocialMediaRef[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): SocialMediaRef[] => {
+    if (typeof item === 'string') {
+      const url = httpUrlValue(item);
+      return url ? [{ url }] : [];
+    }
+    if (!isRecord(item)) return [];
+    const url = httpUrlValue(item.url) ?? httpUrlValue(item.src) ?? httpUrlValue(item.poster);
+    if (!url) return [];
+    const posterUrl = httpUrlValue(item.poster);
+    return [
+      {
+        url,
+        ...(stringValue(item.type) ? { type: stringValue(item.type) } : {}),
+        ...(posterUrl && posterUrl !== url ? { posterUrl } : {}),
+      },
+    ];
+  });
+}
+
+function tokenQuoteValue(value: unknown): TokenQuoteRef | undefined {
+  if (!isRecord(value)) return undefined;
+  const marketCapUsd = nonnegativeNumericValue(
+    value.marketCapUsd,
+    value.market_cap_usd,
+    value.mc,
+    value.mcap,
+  );
+  const volume24hUsd = nonnegativeNumericValue(
+    value.volume24hUsd,
+    value.volume_24h_usd,
+    value.vol24h,
+    value.volume24h,
+  );
+  const priceUsd = nonnegativeNumericValue(value.priceUsd, value.price_usd, value.price);
+  if (marketCapUsd == null && volume24hUsd == null && priceUsd == null) return undefined;
+  return { marketCapUsd, volume24hUsd, priceUsd };
+}
+
+function tradeValue(value: unknown): TradeRef | undefined {
+  if (!isRecord(value)) return undefined;
+  const tokenAmount = nonnegativeNumericValue(
+    value.tokenAmount,
+    value.token_amount,
+    value.amount,
+  );
+  const priceUsd = nonnegativeNumericValue(value.priceUsd, value.price_usd, value.price);
+  const marketCapUsd = nonnegativeNumericValue(
+    value.marketCapUsd,
+    value.market_cap_usd,
+    value.mcap,
+    value.market_cap,
+  );
+  const cashSymbol = stringValue(value.cashSymbol) ?? stringValue(value.cash_symbol);
+  const route = stringValue(value.route);
+  const venue = stringValue(value.venue) ?? stringValue(value.via);
+  if (
+    tokenAmount == null &&
+    priceUsd == null &&
+    marketCapUsd == null &&
+    !cashSymbol &&
+    !route &&
+    !venue
+  ) {
+    return undefined;
+  }
+  return { tokenAmount, priceUsd, marketCapUsd, cashSymbol, route, venue };
+}
+
+function referenceKindValue(
+  value: unknown,
+  action: string,
+): SocialReferenceRef['kind'] {
+  const kind = stringValue(value)?.toLowerCase();
+  if (kind === 'reply' || kind === 'quote' || kind === 'repost') return kind;
+  if (action === 'reply' || action === 'quote' || action === 'repost') return action;
+  return 'reference';
+}
+
+function socialReferenceValue(value: unknown, action: string): SocialReferenceRef | undefined {
+  if (!isRecord(value)) return undefined;
+  const author = stringValue(value.author) ?? stringValue(value.author_name);
+  const authorHandle =
+    stringValue(value.authorHandle) ??
+    stringValue(value.author_handle) ??
+    stringValue(value.handle);
+  const avatarUrl =
+    httpUrlValue(value.avatarUrl) ??
+    httpUrlValue(value.author_avatar) ??
+    httpUrlValue(value.avatar);
+  const text = stringValue(value.text) ?? stringValue(value.reference_text);
+  const translation =
+    translationValue(value.translation) ?? translationValue(value.reference_translation);
+  const media = mediaValues(value.media ?? value.reference_media);
+  if (!author && !authorHandle && !avatarUrl && !text && !translation && !media.length) {
+    return undefined;
+  }
+  return {
+    kind: referenceKindValue(value.kind ?? value.type, action),
+    author,
+    authorHandle,
+    avatarUrl,
+    text,
+    translation,
+    media,
+  };
+}
+
+function socialTargetValue(value: unknown): SocialTargetRef | undefined {
+  if (!isRecord(value)) return undefined;
+  const name = stringValue(value.name) ?? stringValue(value.author_name);
+  const handle =
+    stringValue(value.handle) ??
+    stringValue(value.username) ??
+    stringValue(value.author_handle);
+  const avatarUrl =
+    httpUrlValue(value.avatarUrl) ?? httpUrlValue(value.avatar_url) ?? httpUrlValue(value.avatar);
+  const bannerUrl =
+    httpUrlValue(value.bannerUrl) ?? httpUrlValue(value.banner_url) ?? httpUrlValue(value.banner);
+  const bio = stringValue(value.bio) ?? stringValue(value.description);
+  const bioTranslation =
+    translationValue(value.bioTranslation) ??
+    translationValue(value.bio_translation) ??
+    translationValue(value.description_translation);
+  const followers = nonnegativeNumericValue(value.followers, value.followers_count);
+  const following = nonnegativeNumericValue(value.following, value.following_count);
+  const verified = typeof value.verified === 'boolean' ? value.verified : undefined;
+  const profileUrl =
+    httpUrlValue(value.profileUrl) ??
+    httpUrlValue(value.profile) ??
+    httpUrlValue(value.url) ??
+    (handle ? `https://x.com/${encodeURIComponent(handle.replace(/^@+/, ''))}` : undefined);
+  if (
+    !name &&
+    !handle &&
+    !avatarUrl &&
+    !bannerUrl &&
+    !bio &&
+    !bioTranslation &&
+    followers == null &&
+    following == null &&
+    verified == null &&
+    !profileUrl
+  ) {
+    return undefined;
+  }
+  return {
+    name,
+    handle,
+    avatarUrl,
+    bannerUrl,
+    bio,
+    bioTranslation,
+    followers,
+    following,
+    verified,
+    profileUrl,
+  };
 }
 
 function sourceValue(value: unknown, action?: string): WindSource {
@@ -259,7 +500,14 @@ function importanceValue(value: unknown, action?: string): Importance {
   if (action && /(?:buy|sell|swap|callout|verified|binance_new|ansem)/i.test(action)) {
     return 'urgent';
   }
-  if (action && /(?:reply|quote|update|consensus|thesis)/i.test(action)) return 'high';
+  if (
+    action &&
+    /(?:reply|quote|update|consensus|thesis|follow|unfollow|description|photo|banner|name|handle|pin)/i.test(
+      action,
+    )
+  ) {
+    return 'high';
+  }
   return 'normal';
 }
 
@@ -277,11 +525,20 @@ function isoDate(value: unknown, fallback: string): string {
 
 function actionLabel(action: string): string {
   const labels: Record<string, string> = {
+    follow: '关注账号',
+    unfollow: '取消关注',
     tweet: '发布新动态',
     reply: '回复新动态',
     quote: '引用新动态',
     repost: '转发新动态',
     delete_post: '删除动态',
+    photo: '更换头像',
+    banner: '更换横幅',
+    description: '更新简介',
+    name: '更新昵称',
+    handle: '更新账号',
+    pin: '置顶动态',
+    unpin: '取消置顶',
     fomo_buy: 'Fomo 买入',
     fomo_sell: 'Fomo 卖出',
     fomo_swap: 'Fomo 交易',
@@ -343,6 +600,7 @@ function tokenFromBoardPayload(payload: Record<string, unknown>): TokenRef | und
       pump?.chain ??
       fomo?.chain ??
       binance?.chain;
+    const quote = tokenQuoteValue(caInfo);
     return {
       chain: chainValue(chain, address),
       address,
@@ -353,6 +611,7 @@ function tokenFromBoardPayload(payload: Record<string, unknown>): TokenRef | und
         stringValue(binance?.symbol),
       name: stringValue(pump?.name) ?? stringValue(binance?.name),
       imageUrl: httpUrlValue(pump?.image),
+      ...(quote ? { quote } : {}),
     };
   }
 
@@ -419,6 +678,11 @@ export function normalizeStreamConfig(value: unknown): StreamConfig {
       stringValue(value.debotUrlTemplate) ?? DEFAULT_CONFIG.debotUrlTemplate,
     gmgnUrlTemplate:
       stringValue(value.gmgnUrlTemplate) ?? DEFAULT_CONFIG.gmgnUrlTemplate,
+    sub2ApiBaseUrl:
+      typeof value.sub2ApiBaseUrl === 'string'
+        ? value.sub2ApiBaseUrl.trim()
+        : DEFAULT_CONFIG.sub2ApiBaseUrl,
+    grokModel: stringValue(value.grokModel) ?? DEFAULT_CONFIG.grokModel,
     reuseTradingTab:
       typeof value.reuseTradingTab === 'boolean'
         ? value.reuseTradingTab
@@ -460,17 +724,22 @@ export function parseWindEvent(
       const chain = stringValue(envelope.token.chain);
       const address = stringValue(envelope.token.address);
       if (chain && address) {
+        const quote = tokenQuoteValue(envelope.token.quote);
         token = {
           chain,
           address,
           symbol: stringValue(envelope.token.symbol),
           name: stringValue(envelope.token.name),
           imageUrl: httpUrlValue(envelope.token.imageUrl),
+          ...(quote ? { quote } : {}),
         };
       }
     }
     const consensus = consensusValue(envelope.consensus);
     const position = positionValue(envelope.position);
+    const trade = tradeValue(envelope.trade);
+    const reference = socialReferenceValue(envelope.reference, normalizedAction ?? '');
+    const target = socialTargetValue(envelope.target);
     return {
       id: normalizedId,
       sequence:
@@ -489,11 +758,14 @@ export function parseWindEvent(
       title: normalizedTitle,
       body: stringValue(envelope.body),
       amountUsd: nonnegativeNumericValue(envelope.amountUsd, envelope.amount_usd),
+      trade,
       importance: importanceValue(envelope.importance),
       token,
       consensus,
       position,
-      sourceUrl: httpUrlValue(envelope.sourceUrl),
+      reference,
+      target,
+      sourceUrl: httpUrlValue(envelope.sourceUrl) ?? target?.profileUrl,
     };
   }
 
@@ -518,6 +790,19 @@ export function parseWindEvent(
   const ansem = isRecord(extra.ansem) ? extra.ansem : undefined;
   const consensus = action === 'fomo_consensus' ? consensusValue(fomo?.consensus) : undefined;
   const position = positionFromTrade(action, fomo, pump);
+  const trade = tradeValue(action.startsWith('pump_') ? pump : action.startsWith('fomo_') ? fomo : undefined);
+  const reference = socialReferenceValue(
+    {
+      author_name: payload.reference_author_name,
+      author_handle: payload.reference_author_handle,
+      author_avatar: payload.reference_author_avatar,
+      text: payload.reference_text,
+      translation: payload.reference_translation,
+      media: payload.reference_media,
+    },
+    action,
+  );
+  const target = socialTargetValue(payload.target);
   const amountUsd = nonnegativeNumericValue(
     pump?.amount_usd,
     pump?.amountUsd,
@@ -557,7 +842,8 @@ export function parseWindEvent(
     httpUrlValue(fomo?.tx_url) ??
     httpUrlValue(pump?.tx_url) ??
     httpUrlValue(pump?.url) ??
-    httpUrlValue(ansem?.url);
+    httpUrlValue(ansem?.url) ??
+    target?.profileUrl;
 
   return {
     id,
@@ -581,10 +867,13 @@ export function parseWindEvent(
     title,
     body,
     amountUsd,
+    trade,
     importance: importanceValue(undefined, action),
     token,
     consensus,
     position,
+    reference,
+    target,
     sourceUrl,
   };
 }

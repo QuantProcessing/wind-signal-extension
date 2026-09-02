@@ -9,12 +9,20 @@ import {
   parseWindHistory,
   type BackgroundPush,
   type ConnectionState,
+  type GrokChatContext,
+  type GrokChatMessage,
+  type GrokChatResult,
   type PanelCommand,
   type RuntimeSnapshot,
   type StreamConfig,
   type TradeTarget,
   type WindEvent,
 } from '../shared/protocol';
+import {
+  buildSub2ApiResponsesUrl,
+  parseGrokResponse,
+  sub2ApiPermissionPattern,
+} from '../shared/grok';
 import { buildTargetTradeUrl, hostForTradeUrl } from '../shared/trade-route';
 
 const EVENT_LIMIT = 200;
@@ -546,10 +554,143 @@ async function saveConfig(nextConfig: StreamConfig): Promise<RuntimeSnapshot> {
   };
   buildTargetTradeUrl('debot', normalized.debotUrlTemplate, sampleToken);
   buildTargetTradeUrl('gmgn', normalized.gmgnUrlTemplate, sampleToken);
+  if (normalized.sub2ApiBaseUrl) buildSub2ApiResponsesUrl(normalized.sub2ApiBaseUrl);
   config = normalized;
   await chrome.storage.local.set({ [STORAGE_KEYS.config]: config });
   broadcast({ type: 'snapshot', snapshot: snapshot() });
   return snapshot();
+}
+
+function assertGrokUiSender(sender: chrome.runtime.MessageSender): void {
+  if (sender.id !== chrome.runtime.id || !sender.url) {
+    throw new Error('Grok 对话只能从扩展界面发起');
+  }
+  const senderUrl = new URL(sender.url);
+  const extensionOrigin = new URL(chrome.runtime.getURL('/')).origin;
+  if (
+    senderUrl.origin !== extensionOrigin ||
+    (senderUrl.pathname !== '/sidepanel.html' && senderUrl.pathname !== '/chat.html')
+  ) {
+    throw new Error('Grok 对话只能从扩展界面发起');
+  }
+}
+
+function normalizeGrokMessages(messages: GrokChatMessage[]): GrokChatMessage[] {
+  if (!Array.isArray(messages)) throw new Error('Grok 对话内容格式不正确');
+  const normalized = messages.slice(-10).map((message) => ({
+    role: message?.role,
+    content: typeof message?.content === 'string' ? message.content.trim() : '',
+  }));
+  if (
+    !normalized.length ||
+    normalized.some(
+      (message) =>
+        (message.role !== 'user' && message.role !== 'assistant') ||
+        !message.content ||
+        message.content.length > 12_000,
+    )
+  ) {
+    throw new Error('Grok 对话内容为空或过长');
+  }
+  return normalized as GrokChatMessage[];
+}
+
+function grokHttpError(status: number, detail: string, retryAfter: string | null): Error {
+  if (status === 401) return new Error('Sub2API Key 无效或已过期');
+  if (status === 403) return new Error('当前 Grok 账号没有该模型或工具的使用权限');
+  if (status === 429) {
+    return new Error(`Grok 额度或请求频率已达上限${retryAfter ? `，请在 ${retryAfter} 后重试` : ''}`);
+  }
+  return new Error(detail || `Sub2API 请求失败（HTTP ${status}）`);
+}
+
+async function chatWithGrok(messages: GrokChatMessage[]): Promise<GrokChatResult> {
+  if (!config.sub2ApiBaseUrl) throw new Error('请先在设置中填写 Sub2API 地址');
+  const model = config.grokModel.trim();
+  if (!model) throw new Error('请先在设置中填写 Grok 模型');
+
+  const stored = await chrome.storage.local.get(STORAGE_KEYS.grokApiKey);
+  const apiKey = stored[STORAGE_KEYS.grokApiKey];
+  if (typeof apiKey !== 'string' || !apiKey.trim()) {
+    throw new Error('请先在设置中填写 Sub2API Key');
+  }
+
+  const permission = sub2ApiPermissionPattern(config.sub2ApiBaseUrl);
+  if (!(await chrome.permissions.contains({ origins: [permission] }))) {
+    throw new Error('请重新保存 AI 设置并允许访问 Sub2API 站点');
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(buildSub2ApiResponsesUrl(config.sub2ApiBaseUrl), {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey.trim()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        stream: false,
+        store: false,
+        input: normalizeGrokMessages(messages),
+        tools: [{ type: 'x_search' }, { type: 'web_search' }],
+        tool_choice: 'auto',
+      }),
+    });
+  } catch (error) {
+    throw new Error(`无法连接 Sub2API：${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  const raw = await response.text();
+  let payload: unknown = null;
+  try {
+    payload = raw ? JSON.parse(raw) : null;
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    const detail =
+      payload && typeof payload === 'object' && 'error' in payload
+        ? typeof payload.error === 'string'
+          ? payload.error
+          : payload.error && typeof payload.error === 'object' && 'message' in payload.error
+            ? String(payload.error.message)
+            : ''
+        : raw.slice(0, 300);
+    throw grokHttpError(response.status, detail, response.headers.get('Retry-After'));
+  }
+
+  return parseGrokResponse(payload);
+}
+
+async function openGrokWindow(
+  context?: GrokChatContext,
+): Promise<{ opened: true; reused: boolean }> {
+  const baseUrl = chrome.runtime.getURL('chat.html');
+  const url = new URL(baseUrl);
+  if (context) url.searchParams.set('context', JSON.stringify(context));
+
+  const tabs = await chrome.tabs.query({});
+  const existing = tabs
+    .filter((tab) => tab.url?.startsWith(baseUrl))
+    .sort((left, right) => (right.lastAccessed ?? 0) - (left.lastAccessed ?? 0))[0];
+  if (existing?.id != null) {
+    await chrome.tabs.update(existing.id, { url: url.toString(), active: true });
+    if (existing.windowId != null) {
+      await chrome.windows.update(existing.windowId, { focused: true });
+    }
+    return { opened: true, reused: true };
+  }
+
+  await chrome.windows.create({
+    url: url.toString(),
+    type: 'popup',
+    width: 920,
+    height: 760,
+    focused: true,
+  });
+  return { opened: true, reused: false };
 }
 
 async function openTrade(
@@ -672,6 +813,12 @@ chrome.runtime.onMessage.addListener(
             return openWind();
           case 'trade:open':
             return openTrade(command.target, command.event);
+          case 'grok:chat':
+            assertGrokUiSender(sender);
+            return chatWithGrok(command.messages);
+          case 'grok:window:open':
+            assertGrokUiSender(sender);
+            return openGrokWindow(command.context);
           case 'events:clear':
             events = [];
             persistEvents();

@@ -27,6 +27,15 @@ export function operationPresentation(event: WindEvent): OperationPresentation {
   if (action === 'binance_new') return { label: '上新', tone: 'neutral' };
   if (action === 'ansem_tier') return { label: '等级', tone: 'neutral' };
   if (action === 'ansem_burn') return { label: '烧币', tone: 'neutral' };
+  if (action === 'follow') return { label: '关注', tone: 'neutral' };
+  if (action === 'unfollow') return { label: '取关', tone: 'neutral' };
+  if (action === 'photo') return { label: '换头像', tone: 'neutral' };
+  if (action === 'banner') return { label: '换横幅', tone: 'neutral' };
+  if (action === 'description') return { label: '更新简介', tone: 'neutral' };
+  if (action === 'name') return { label: '改名', tone: 'neutral' };
+  if (action === 'handle') return { label: '改账号', tone: 'neutral' };
+  if (action === 'pin') return { label: '置顶', tone: 'neutral' };
+  if (action === 'unpin') return { label: '取消置顶', tone: 'neutral' };
 
   if (action.includes('buy') || action.includes('callout')) {
     const step = event.position?.sequence;

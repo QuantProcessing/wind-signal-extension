@@ -119,6 +119,206 @@ describe('parseWindEvent', () => {
     });
   });
 
+  it('keeps the original X post for replies', () => {
+    const event = parseWindEvent({
+      type: 'event',
+      event: {
+        seq: 993,
+        platform: 'x',
+        handle: 'elonmusk',
+        action: 'reply',
+        payload: {
+          author_name: 'Elon Musk',
+          content_text: 'When is Diablo V?',
+          reference_text: 'BLIZZCON MONTH! I will be there, streaming on-site.',
+          reference_translation: { text: '暴雪嘉年华月！我会在现场直播。' },
+          reference_author_handle: 'wudijo',
+          reference_author_name: 'wudijo',
+          reference_author_avatar: '/api/tgmedia/wudijo.jpg',
+          reference_media: [
+            { type: 'photo', url: '/api/tgmedia/blizzcon.jpg' },
+            { type: 'video', url: 'https://video.example.com/a.mp4', poster: '/api/tgmedia/poster.jpg' },
+          ],
+        },
+      },
+    });
+
+    expect(event?.reference).toEqual({
+      kind: 'reply',
+      author: 'wudijo',
+      authorHandle: 'wudijo',
+      avatarUrl: 'https://wind.jokkimon.club/api/tgmedia/wudijo.jpg',
+      text: 'BLIZZCON MONTH! I will be there, streaming on-site.',
+      translation: '暴雪嘉年华月！我会在现场直播。',
+      media: [
+        { type: 'photo', url: 'https://wind.jokkimon.club/api/tgmedia/blizzcon.jpg' },
+        {
+          type: 'video',
+          url: 'https://video.example.com/a.mp4',
+          posterUrl: 'https://wind.jokkimon.club/api/tgmedia/poster.jpg',
+        },
+      ],
+    });
+  });
+
+  it('keeps reference context when a quote or repost has no standalone body', () => {
+    const quote = parseWindEvent({
+      type: 'event',
+      event: {
+        seq: 1021939,
+        platform: 'x',
+        handle: 'vladtenev',
+        action: 'quote',
+        payload: {
+          content_text: 'I have always liked the idea that becoming an owner is social.',
+          reference_text: 'Investing is better with friends.',
+          reference_author_handle: 'RobinhoodApp',
+          reference_author_name: 'Robinhood',
+          reference_media: [
+            {
+              type: 'video',
+              poster: 'https://pbs.twimg.com/amplify_video_thumb/example.jpg',
+              url: 'https://video.twimg.com/amplify_video/example.mp4',
+            },
+          ],
+        },
+      },
+    });
+    const repost = parseWindEvent({
+      type: 'event',
+      event: {
+        seq: 1020818,
+        platform: 'x',
+        handle: 'blknoiz06',
+        action: 'repost',
+        payload: {
+          content_text: '',
+          reference_text: "nah i know who did and it's not u vlad\n\n$ANSEM",
+          reference_author_handle: '0xaman_',
+          reference_author_name: 'Aman',
+          reference_media: [{ type: 'image', url: 'https://pbs.twimg.com/media/example.jpg' }],
+        },
+      },
+    });
+
+    expect(quote?.reference).toMatchObject({
+      kind: 'quote',
+      author: 'Robinhood',
+      authorHandle: 'RobinhoodApp',
+      media: [{ posterUrl: 'https://pbs.twimg.com/amplify_video_thumb/example.jpg' }],
+    });
+    expect(repost).toMatchObject({
+      title: '转发新动态',
+      reference: {
+        kind: 'repost',
+        author: 'Aman',
+        authorHandle: '0xaman_',
+        text: "nah i know who did and it's not u vlad\n\n$ANSEM",
+      },
+    });
+  });
+
+  it('keeps the target profile for X follow activity events', () => {
+    const event = parseWindEvent({
+      type: 'event_update',
+      event: {
+        seq: 994,
+        platform: 'x',
+        handle: 'ansem',
+        action: 'follow',
+        payload: {
+          author_name: 'Ansem',
+          content_text: '',
+          target: {
+            name: 'Market Structure',
+            handle: 'marketstructure',
+            avatar: '/api/tgmedia/marketstructure.jpg',
+            banner: '/api/tgmedia/marketstructure-banner.jpg',
+            bio: 'On-chain research and liquidity analysis.',
+            bio_translation: { text: '链上研究与流动性分析。' },
+            followers: 128400,
+            following: 742,
+            verified: true,
+          },
+        },
+      },
+    });
+
+    expect(event).toMatchObject({
+      action: 'follow',
+      title: '关注账号',
+      importance: 'high',
+      target: {
+        name: 'Market Structure',
+        handle: 'marketstructure',
+        avatarUrl: 'https://wind.jokkimon.club/api/tgmedia/marketstructure.jpg',
+        bannerUrl: 'https://wind.jokkimon.club/api/tgmedia/marketstructure-banner.jpg',
+        bio: 'On-chain research and liquidity analysis.',
+        bioTranslation: '链上研究与流动性分析。',
+        followers: 128400,
+        following: 742,
+        verified: true,
+        profileUrl: 'https://x.com/marketstructure',
+      },
+      sourceUrl: 'https://x.com/marketstructure',
+    });
+  });
+
+  it('separates trade-time metrics from the current ca_info quote', () => {
+    const event = parseWindEvent({
+      type: 'event',
+      event: {
+        seq: 995,
+        platform: 'fomo',
+        handle: 'frankdegods',
+        action: 'fomo_buy',
+        payload: {
+          content_text: '买入 QC ≈$5.0K · 2.3M @ $0.0022 · Robinhood · ws',
+          ca_info: [
+            {
+              address: '0xa802332f6c9daf2146a61c51876d180b1a4a9901',
+              resolved_chain: 'robinhood',
+              symbol: 'QC',
+              mc: 1_044_833.5,
+              vol24h: 1_014_060.001,
+              price: 0.0010448335,
+            },
+          ],
+          extra: {
+            fomo: {
+              usd: 4997.547526,
+              amount: 2_257_482.58756,
+              price: 0.0022137701,
+              mcap: 1_971_859.0223,
+              cash_symbol: 'USDC',
+              route: 'Robinhood→Solana',
+              via: 'ws',
+            },
+          },
+        },
+      },
+    });
+
+    expect(event).toMatchObject({
+      amountUsd: 4997.547526,
+      trade: {
+        tokenAmount: 2_257_482.58756,
+        priceUsd: 0.0022137701,
+        marketCapUsd: 1_971_859.0223,
+        cashSymbol: 'USDC',
+        route: 'Robinhood→Solana',
+        venue: 'ws',
+      },
+      token: {
+        quote: {
+          marketCapUsd: 1_044_833.5,
+          volume24hUsd: 1_014_060.001,
+          priceUsd: 0.0010448335,
+        },
+      },
+    });
+  });
+
   it('parses the observed Robinhood fomo_buy frame', () => {
     const event = parseWindEvent({
       type: 'event',
@@ -451,6 +651,52 @@ describe('parseWindEvent', () => {
     });
   });
 
+  it('keeps normalized quote, trade, reference, and target data in storage migrations', () => {
+    const event = parseWindEvent({
+      id: 'persisted-rich-event',
+      source: 'x',
+      action: 'quote',
+      occurredAt: '2026-08-31T08:00:00.000Z',
+      receivedAt: '2026-08-31T08:00:00.120Z',
+      title: '引用动态',
+      amountUsd: 2500,
+      trade: { tokenAmount: 1_000_000, priceUsd: 0.0025, marketCapUsd: 2_500_000 },
+      token: {
+        chain: 'base',
+        address: '0x1111111111111111111111111111111111111111',
+        symbol: 'RICH',
+        quote: { marketCapUsd: 2_800_000, volume24hUsd: 900_000, priceUsd: 0.0028 },
+      },
+      reference: {
+        kind: 'quote',
+        author: 'Original Author',
+        authorHandle: 'original',
+        text: 'Original post',
+        media: [],
+      },
+      target: {
+        name: 'Target',
+        handle: 'target',
+        followers: 1000,
+      },
+    });
+
+    expect(event).toMatchObject({
+      trade: { tokenAmount: 1_000_000, priceUsd: 0.0025, marketCapUsd: 2_500_000 },
+      token: {
+        quote: { marketCapUsd: 2_800_000, volume24hUsd: 900_000, priceUsd: 0.0028 },
+      },
+      reference: {
+        kind: 'quote',
+        author: 'Original Author',
+        authorHandle: 'original',
+        text: 'Original post',
+        media: [],
+      },
+      target: { name: 'Target', handle: 'target', followers: 1000 },
+    });
+  });
+
   it('reclassifies persisted Pump events and keeps their normalized USD amount', () => {
     const event = parseWindEvent({
       id: 'persisted-pump-sell',
@@ -607,5 +853,17 @@ describe('stream config', () => {
     expect(normalizeStreamConfig({ theme: 'light' }).theme).toBe('light');
     expect(normalizeStreamConfig({ theme: 'system' }).theme).toBe('system');
     expect(normalizeStreamConfig({ theme: 'midnight' }).theme).toBe(DEFAULT_CONFIG.theme);
+  });
+
+  it('normalizes optional Sub2API settings without storing a key in config', () => {
+    const normalized = normalizeStreamConfig({
+      sub2ApiBaseUrl: '  https://sub2api.example.com/v1  ',
+      grokModel: '  grok-4.6  ',
+      grokApiKey: 'must-not-enter-stream-config',
+    });
+
+    expect(normalized.sub2ApiBaseUrl).toBe('https://sub2api.example.com/v1');
+    expect(normalized.grokModel).toBe('grok-4.6');
+    expect(normalized).not.toHaveProperty('grokApiKey');
   });
 });

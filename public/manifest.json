@@ -6,6 +6,7 @@
   "minimum_chrome_version": "116",
   "permissions": ["sidePanel", "storage", "tabs"],
   "host_permissions": ["https://wind.jokkimon.club/*"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
   "background": {
     "service_worker": "assets/background.js",
     "type": "module"

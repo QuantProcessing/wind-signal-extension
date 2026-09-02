@@ -62,5 +62,13 @@ describe('operationPresentation', () => {
       label: '换仓',
       tone: 'neutral',
     });
+    expect(operationPresentation(event('follow'))).toEqual({
+      label: '关注',
+      tone: 'neutral',
+    });
+    expect(operationPresentation(event('unfollow'))).toEqual({
+      label: '取关',
+      tone: 'neutral',
+    });
   });
 });

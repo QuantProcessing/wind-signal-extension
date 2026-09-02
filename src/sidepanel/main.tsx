@@ -3,8 +3,10 @@ import { createRoot } from 'react-dom/client';
 import '@fontsource-variable/noto-sans-sc';
 import {
   ArrowLeft,
+  BadgeCheck,
   Bell,
   BellOff,
+  Bot,
   Check,
   Clipboard,
   Coins,
@@ -16,19 +18,26 @@ import {
   Play,
   Radio,
   RefreshCw,
+  Repeat2,
+  Reply,
   Settings2,
   ShieldCheck,
+  Sparkles,
   Sun,
+  UserMinus,
+  UserPlus,
   UsersRound,
   Zap,
 } from 'lucide-react';
 import {
   DEFAULT_CONFIG,
   EMPTY_CONNECTION,
+  STORAGE_KEYS,
   WIND_WEBSOCKET_URL,
   type BackgroundPush,
   type ConnectionPhase,
   type ConsensusRef,
+  type GrokChatContext,
   type RuntimeSnapshot,
   type SessionState,
   type StreamConfig,
@@ -38,13 +47,59 @@ import {
   type WindEvent,
   type WindSource,
 } from '../shared/protocol';
+import { sub2ApiPermissionPattern } from '../shared/grok';
 import { operationPresentation } from '../shared/operation';
+import { GrokWorkspace } from '../grok/GrokWorkspace';
 import './styles.css';
 
 const isExtension = typeof chrome !== 'undefined' && Boolean(chrome.runtime?.id);
 const now = Date.now();
 
 const DEMO_EVENTS: WindEvent[] = [
+  {
+    id: 'demo-x-reply-1',
+    sequence: 1844,
+    source: 'x',
+    action: 'reply',
+    occurredAt: new Date(now - 2_200).toISOString(),
+    receivedAt: new Date(now - 1_980).toISOString(),
+    author: 'Elon Musk',
+    authorHandle: 'elonmusk',
+    title: 'When is Diablo V? The D4 engine is out of date.',
+    importance: 'high',
+    reference: {
+      kind: 'reply',
+      author: 'wudijo',
+      authorHandle: 'wudijo',
+      text: "BLIZZCON MONTH! I'll be there, streaming on-site and meeting everyone. What are you most excited to see?",
+      translation: '暴雪嘉年华月！我会在现场直播，也会和大家见面。',
+      media: [],
+    },
+    sourceUrl: 'https://x.com/elonmusk/status/1',
+  },
+  {
+    id: 'demo-x-follow-2',
+    sequence: 1843,
+    source: 'x',
+    action: 'follow',
+    occurredAt: new Date(now - 3_200).toISOString(),
+    receivedAt: new Date(now - 2_910).toISOString(),
+    author: 'Ansem',
+    authorHandle: 'blknoiz06',
+    title: '关注账号',
+    importance: 'high',
+    target: {
+      name: 'Market Structure',
+      handle: 'marketstructure',
+      bio: 'On-chain research, market structure and liquidity analysis.',
+      bioTranslation: '链上研究、市场结构与流动性分析。',
+      followers: 128_400,
+      following: 742,
+      verified: true,
+      profileUrl: 'https://x.com/marketstructure',
+    },
+    sourceUrl: 'https://x.com/marketstructure',
+  },
   {
     id: 'demo-consensus-1',
     sequence: 1842,
@@ -107,12 +162,24 @@ const DEMO_EVENTS: WindEvent[] = [
     title: '$PULSE',
     body: '再次买入，成交分布于 2 个区块。',
     amountUsd: 5_000,
+    trade: {
+      tokenAmount: 1_200_000,
+      priceUsd: 0.00418,
+      marketCapUsd: 4_180_000,
+      cashSymbol: 'USDC',
+      venue: 'pumpswap',
+    },
     importance: 'urgent',
     position: { sequence: 'add' },
     token: {
       chain: 'sol',
       address: '3Wd7M9rJvA4Kp2nQdL6sY8demo',
       symbol: 'PULSE',
+      quote: {
+        marketCapUsd: 4_420_000,
+        volume24hUsd: 9_800_000,
+        priceUsd: 0.00442,
+      },
     },
   },
   {
@@ -140,8 +207,8 @@ const DEMO_SNAPSHOT: RuntimeSnapshot = {
     lastEventAt: DEMO_EVENTS[0].receivedAt,
     retryAt: null,
     receivedMessages: 18,
-    eventFrames: 4,
-    parsedEvents: 4,
+    eventFrames: 6,
+    parsedEvents: 6,
     droppedEvents: 0,
     lastMessageType: 'event',
     lastCloseCode: null,
@@ -151,7 +218,7 @@ const DEMO_SNAPSHOT: RuntimeSnapshot = {
 };
 
 type SourceFilter = 'all' | WindSource;
-type PanelView = 'stream' | 'settings';
+type PanelView = 'stream' | 'settings' | 'grok';
 type CommandResponse<T> = { ok: true; result: T } | { ok: false; error: string };
 
 const SOURCE_META: Record<WindSource, { label: string; short: string }> = {
@@ -252,8 +319,27 @@ function formatTradeUsd(value: number): string {
   return `$${amount.toFixed(decimals).replace(/\.?0+$/, '')}`;
 }
 
-function titleIncludesUsdAmount(title: string): boolean {
-  return /(?:≈\s*)?\$\s*\d/i.test(title);
+function formatCompactNumber(value: number): string {
+  const amount = Math.max(0, value);
+  if (amount >= 1_000_000_000) return `${(amount / 1_000_000_000).toFixed(1)}B`;
+  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `${(amount / 1_000).toFixed(1)}K`;
+  if (amount >= 10) return Math.round(amount).toLocaleString('en-US');
+  return amount.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function formatPriceUsd(value: number): string {
+  const price = Math.max(0, value);
+  if (price === 0) return '$0';
+  if (price >= 1) {
+    return `$${price.toLocaleString('en-US', { maximumFractionDigits: 4 })}`;
+  }
+  const decimals = Math.min(10, Math.max(4, Math.ceil(-Math.log10(price)) + 3));
+  return `$${price.toFixed(decimals).replace(/\.?0+$/, '')}`;
+}
+
+function isTradeEvent(event: WindEvent): boolean {
+  return /^(?:fomo|pump)_(?:buy|sell)$/.test(event.action ?? '');
 }
 
 function chainPresentation(chain: string): { label: string; tone: string } {
@@ -406,9 +492,198 @@ function ConsensusContent({ consensus, title }: { consensus: ConsensusRef; title
   );
 }
 
+function TradeContent({ event }: { event: WindEvent }) {
+  const symbol = event.token?.symbol;
+  const metrics = [
+    event.trade?.priceUsd != null
+      ? { label: '成交价', value: formatPriceUsd(event.trade.priceUsd) }
+      : null,
+    event.trade?.marketCapUsd != null
+      ? { label: '成交市值', value: formatUsd(event.trade.marketCapUsd) }
+      : null,
+    event.trade?.tokenAmount != null
+      ? { label: '数量', value: formatCompactNumber(event.trade.tokenAmount) }
+      : null,
+  ].filter((metric): metric is { label: string; value: string } => metric != null);
+  const details = [
+    event.trade?.cashSymbol ? `结算 ${event.trade.cashSymbol}` : null,
+    event.trade?.route,
+    event.trade?.venue,
+  ].filter((detail): detail is string => Boolean(detail));
+
+  return (
+    <section className="trade-summary" aria-label="成交摘要">
+      <h2 className="trade-headline">
+        {event.amountUsd != null && (
+          <span className="trade-amount">≈{formatTradeUsd(event.amountUsd)}</span>
+        )}
+        {event.amountUsd != null && symbol && <span className="trade-separator">·</span>}
+        {symbol && <span className="trade-symbol">${symbol}</span>}
+        {event.amountUsd == null && !symbol && event.title}
+      </h2>
+      {metrics.length > 0 && (
+        <dl className="trade-metrics">
+          {metrics.map((metric) => (
+            <div key={metric.label}>
+              <dt>{metric.label}</dt>
+              <dd>{metric.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {details.length > 0 && <p className="trade-route">{details.join(' · ')}</p>}
+      {event.body && <p className="trade-note">{event.body}</p>}
+    </section>
+  );
+}
+
+function ReferenceContent({ event }: { event: WindEvent }) {
+  const reference = event.reference;
+  if (!reference) return null;
+  const handle = reference.authorHandle?.replace(/^@+/, '');
+  const author = reference.author || (handle ? `@${handle}` : '原贴作者');
+  const relation =
+    reference.kind === 'reply'
+      ? '回复的原贴'
+      : reference.kind === 'repost'
+        ? '转发的原贴'
+        : reference.kind === 'quote'
+          ? '引用的原贴'
+          : '相关原贴';
+  const RelationIcon = reference.kind === 'reply' ? Reply : Repeat2;
+
+  return (
+    <section className="reference-block" aria-label={relation}>
+      <div className="reference-head">
+        <span className="reference-avatar" aria-hidden="true">
+          {author.slice(0, 1).toUpperCase()}
+          {reference.avatarUrl && (
+            <img
+              src={reference.avatarUrl}
+              alt=""
+              referrerPolicy="no-referrer"
+              onError={(image) => {
+                image.currentTarget.hidden = true;
+              }}
+            />
+          )}
+        </span>
+        <span className="reference-identity">
+          <span className="reference-relation">
+            <RelationIcon size={12} aria-hidden="true" />
+            {relation}
+          </span>
+          <span className="reference-author-line">
+            <strong>{author}</strong>
+            {handle && <small>@{handle}</small>}
+          </span>
+        </span>
+      </div>
+      {reference.text && <blockquote>{reference.text}</blockquote>}
+      {reference.translation && reference.translation !== reference.text && (
+        <p>{reference.translation}</p>
+      )}
+      {reference.media.length > 0 && (
+        <div className={`reference-media media-count-${Math.min(reference.media.length, 2)}`}>
+          {reference.media.slice(0, 4).map((media, index) => {
+            const previewUrl = media.posterUrl ??
+              (media.type?.toLowerCase().includes('video') ? undefined : media.url);
+            return previewUrl ? (
+              <img
+                key={`${media.url}-${index}`}
+                src={previewUrl}
+                alt="原贴媒体"
+                referrerPolicy="no-referrer"
+                onError={(image) => {
+                  image.currentTarget.hidden = true;
+                }}
+              />
+            ) : (
+              <span className="reference-video" key={`${media.url}-${index}`}>
+                原贴视频
+              </span>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function TargetContent({ event }: { event: WindEvent }) {
+  const target = event.target;
+  if (!target) return null;
+  const handle = target.handle?.replace(/^@+/, '');
+  const name = target.name || (handle ? `@${handle}` : '目标账号');
+  const isUnfollow = event.action === 'unfollow';
+  const ActionIcon = isUnfollow ? UserMinus : UserPlus;
+
+  return (
+    <section className="target-content" aria-label={`${isUnfollow ? '取消关注' : '关注'} ${name}`}>
+      <h2 className="target-action-title">
+        <ActionIcon size={17} aria-hidden="true" />
+        {isUnfollow ? '取消关注' : '关注了'}
+        <span>{handle ? `@${handle}` : name}</span>
+      </h2>
+      <div className="target-profile">
+        {target.bannerUrl && (
+          <img className="target-banner" src={target.bannerUrl} alt="" referrerPolicy="no-referrer" />
+        )}
+        <div className="target-profile-head">
+          <span className="target-avatar" aria-hidden="true">
+            {name.slice(0, 1).toUpperCase()}
+            {target.avatarUrl && (
+              <img
+                src={target.avatarUrl}
+                alt=""
+                referrerPolicy="no-referrer"
+                onError={(image) => {
+                  image.currentTarget.hidden = true;
+                }}
+              />
+            )}
+          </span>
+          <span className="target-identity">
+            <span>
+              <strong>{name}</strong>
+              {target.verified && <BadgeCheck size={14} aria-label="已认证" />}
+            </span>
+            {handle && <small>@{handle}</small>}
+          </span>
+          {(target.following != null || target.followers != null) && (
+            <dl className="target-counts">
+              {target.following != null && (
+                <div><dd>{formatCompactNumber(target.following)}</dd><dt>关注</dt></div>
+              )}
+              {target.followers != null && (
+                <div><dd>{formatCompactNumber(target.followers)}</dd><dt>粉丝</dt></div>
+              )}
+            </dl>
+          )}
+        </div>
+        {target.bio && <p className="target-bio">{target.bio}</p>}
+        {target.bioTranslation && target.bioTranslation !== target.bio && (
+          <p className="target-translation">{target.bioTranslation}</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function TokenPanel({ token, onCopy }: { token: TokenRef; onCopy: () => void }) {
   const chain = chainPresentation(token.chain);
   const symbol = token.symbol || 'TOKEN';
+  const quoteMetrics = [
+    token.quote?.marketCapUsd != null
+      ? { label: '现市值', value: formatUsd(token.quote.marketCapUsd) }
+      : null,
+    token.quote?.priceUsd != null
+      ? { label: '现价', value: formatPriceUsd(token.quote.priceUsd) }
+      : null,
+    token.quote?.volume24hUsd != null
+      ? { label: '24h 量', value: formatUsd(token.quote.volume24hUsd) }
+      : null,
+  ].filter((metric): metric is { label: string; value: string } => metric != null);
   return (
     <section className="asset-panel" aria-label={`${symbol} 代币和合约`}>
       <div className="asset-overview">
@@ -434,6 +709,16 @@ function TokenPanel({ token, onCopy }: { token: TokenRef; onCopy: () => void }) 
           {chain.label}
         </span>
       </div>
+      {quoteMetrics.length > 0 && (
+        <dl className="asset-market-metrics">
+          {quoteMetrics.map((metric) => (
+            <div key={metric.label}>
+              <dt>{metric.label}</dt>
+              <dd>{metric.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
       <div className="contract-row">
         <span className="contract-label">CA</span>
         <code title={token.address}>{compactAddress(token.address)}</code>
@@ -451,6 +736,7 @@ function EventItem({
   currentTime,
   busyTarget,
   onTrade,
+  onGrok,
   onCopy,
   onSource,
 }: {
@@ -459,6 +745,7 @@ function EventItem({
   currentTime: number;
   busyTarget?: TradeTarget;
   onTrade: (event: WindEvent, target: TradeTarget) => void;
+  onGrok: (event: WindEvent) => void;
   onCopy: (event: WindEvent) => void;
   onSource: (event: WindEvent) => void;
 }) {
@@ -494,17 +781,18 @@ function EventItem({
       <div className="event-content">
         {event.consensus ? (
           <ConsensusContent consensus={event.consensus} title={event.title} />
+        ) : event.target ? (
+          <TargetContent event={event} />
+        ) : isTradeEvent(event) ? (
+          <TradeContent event={event} />
         ) : (
           <>
-            <h2>
-              {event.amountUsd != null && !titleIncludesUsdAmount(event.title) && (
-                <span className="trade-amount">≈{formatTradeUsd(event.amountUsd)} · </span>
-              )}
-              {event.title}
-            </h2>
+            <h2>{event.title}</h2>
             {event.body && <p>{event.body}</p>}
           </>
         )}
+
+        {event.reference && <ReferenceContent event={event} />}
 
         {event.token && (
           <TokenPanel token={event.token} onCopy={() => onCopy(event)} />
@@ -533,6 +821,12 @@ function EventItem({
           ) : (
             <span className="no-target">无可路由标的</span>
           )}
+          {event.token && (
+            <button className="source-link grok-link" type="button" onClick={() => onGrok(event)}>
+              <Sparkles size={13} aria-hidden="true" />
+              问 Grok
+            </button>
+          )}
           {event.sourceUrl && (
             <button className="source-link" type="button" onClick={() => onSource(event)}>
               看原文 <ExternalLink size={14} />
@@ -542,6 +836,29 @@ function EventItem({
       </div>
     </article>
   );
+}
+
+function grokContextForEvent(event: WindEvent): GrokChatContext {
+  const supportingContext = [
+    event.body,
+    event.reference?.text
+      ? `相关原贴${event.reference.authorHandle ? ` @${event.reference.authorHandle.replace(/^@+/, '')}` : ''}：${event.reference.text}`
+      : undefined,
+    event.target?.bio
+      ? `目标账号${event.target.handle ? ` @${event.target.handle.replace(/^@+/, '')}` : ''}：${event.target.bio}`
+      : undefined,
+  ].filter((value): value is string => Boolean(value));
+  return {
+    eventId: event.id,
+    symbol: event.token?.symbol,
+    name: event.token?.name,
+    chain: event.token?.chain,
+    address: event.token?.address,
+    sourceLabel: SOURCE_META[event.source].label,
+    authorHandle: event.authorHandle,
+    title: event.title,
+    body: supportingContext.join('\n') || undefined,
+  };
 }
 
 function SettingsView({
@@ -556,8 +873,24 @@ function SettingsView({
   onThemePreview: (theme: ThemePreference) => void;
 }) {
   const [draft, setDraft] = useState<StreamConfig>(snapshot.config);
+  const [apiKey, setApiKey] = useState('');
+  const [keyLoaded, setKeyLoaded] = useState(!isExtension);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isExtension) return;
+    void chrome.storage.local
+      .get(STORAGE_KEYS.grokApiKey)
+      .then((stored) => {
+        const value = stored[STORAGE_KEYS.grokApiKey];
+        setApiKey(typeof value === 'string' ? value : '');
+      })
+      .catch((cause: unknown) =>
+        setError(`无法读取 Sub2API Key：${cause instanceof Error ? cause.message : String(cause)}`),
+      )
+      .finally(() => setKeyLoaded(true));
+  }, []);
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
@@ -565,10 +898,23 @@ function SettingsView({
     setError(null);
     try {
       if (isExtension) {
+        if (apiKey.trim() && !draft.sub2ApiBaseUrl.trim()) {
+          throw new Error('填写 Sub2API Key 时也需要填写服务地址');
+        }
+        if (draft.sub2ApiBaseUrl.trim()) {
+          const originPattern = sub2ApiPermissionPattern(draft.sub2ApiBaseUrl);
+          const granted = await chrome.permissions.request({ origins: [originPattern] });
+          if (!granted) throw new Error('需要允许访问 Sub2API 站点才能发送 Grok 对话');
+        }
         const next = await sendCommand<RuntimeSnapshot>({
           type: 'config:save',
           config: draft,
         });
+        if (apiKey.trim()) {
+          await chrome.storage.local.set({ [STORAGE_KEYS.grokApiKey]: apiKey.trim() });
+        } else {
+          await chrome.storage.local.remove(STORAGE_KEYS.grokApiKey);
+        }
         onSaved(next);
       } else {
         onSaved({ ...snapshot, config: draft });
@@ -603,8 +949,8 @@ function SettingsView({
           <ArrowLeft size={19} />
         </button>
         <div>
-          <h1>实时流与交易路由</h1>
-          <p>插件通过已登录的听风页面接收个人实时流</p>
+          <h1>实时流、AI 与交易路由</h1>
+          <p>连接听风实时流，并使用自己的 Sub2API 调用 Grok</p>
         </div>
       </header>
 
@@ -629,6 +975,48 @@ function SettingsView({
             ))}
           </div>
           <p className="theme-help">跟随系统会随设备外观自动切换；深色主题适合低光盯盘。</p>
+        </section>
+
+        <section className="settings-section">
+          <h2>Grok 叙事调查</h2>
+          <label>
+            <span>Sub2API 地址</span>
+            <input
+              value={draft.sub2ApiBaseUrl}
+              inputMode="url"
+              autoComplete="off"
+              placeholder="https://sub2api.example.com"
+              onChange={(inputEvent) =>
+                setDraft({ ...draft, sub2ApiBaseUrl: inputEvent.target.value })
+              }
+            />
+          </label>
+          <p className="field-help">可以填写服务根地址、/v1 或完整的 /v1/responses 地址。</p>
+          <label>
+            <span>Sub2API Key</span>
+            <input
+              type="password"
+              value={apiKey}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={keyLoaded ? 'sk-…' : '正在读取…'}
+              disabled={!keyLoaded}
+              onChange={(inputEvent) => setApiKey(inputEvent.target.value)}
+            />
+          </label>
+          <label>
+            <span>Grok 模型</span>
+            <input
+              value={draft.grokModel}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={DEFAULT_CONFIG.grokModel}
+              onChange={(inputEvent) => setDraft({ ...draft, grokModel: inputEvent.target.value })}
+            />
+          </label>
+          <p className="credential-note">
+            Key 只保存在 Chrome 扩展本地可信存储中；请求由后台直接发给你配置的 Sub2API，并启用 X Search 与 Web Search。
+          </p>
         </section>
 
         <section className="settings-section">
@@ -731,7 +1119,7 @@ function SettingsView({
         </aside>
 
         {error && <div className="form-error">{error}</div>}
-        <button className="save-key" type="submit" disabled={saving}>
+        <button className="save-key" type="submit" disabled={saving || !keyLoaded}>
           {saving ? <RefreshCw className="spin" size={18} /> : <Check size={18} />}
           保存设置
         </button>
@@ -756,6 +1144,7 @@ function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [liveAnnouncement, setLiveAnnouncement] = useState('');
   const [themePreview, setThemePreview] = useState<ThemePreference | null>(null);
+  const [grokEvent, setGrokEvent] = useState<WindEvent | null>(null);
   const previousEventId = useRef<string | null>(snapshot.events[0]?.id ?? null);
   const resolvedTheme = useResolvedTheme(themePreview ?? snapshot.config.theme);
 
@@ -854,6 +1243,24 @@ function App() {
     else window.open(event.sourceUrl, '_blank', 'noopener,noreferrer');
   };
 
+  const openGrokWindow = async (context?: GrokChatContext) => {
+    try {
+      if (isExtension) {
+        const result = await sendCommand<{ reused: boolean }>({
+          type: 'grok:window:open',
+          context,
+        });
+        setNotice(result.reused ? '已切换到 Grok 聊天窗口' : '已打开 Grok 聊天窗口');
+      } else {
+        const url = new URL('/chat.html', window.location.origin);
+        if (context) url.searchParams.set('context', JSON.stringify(context));
+        window.open(url, 'wind-grok-chat', 'popup,width=900,height=720');
+      }
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : String(cause));
+    }
+  };
+
   const toggleConnection = async () => {
     if (!isExtension) {
       setSnapshot((current) => ({
@@ -928,6 +1335,19 @@ function App() {
           setThemePreview(null);
         }}
         onThemePreview={setThemePreview}
+      />
+    );
+  }
+
+  if (view === 'grok' && grokEvent) {
+    return (
+      <GrokWorkspace
+        mode="sidepanel"
+        context={grokContextForEvent(grokEvent)}
+        config={snapshot.config}
+        onBack={() => setView('stream')}
+        onOpenSettings={() => setView('settings')}
+        onOpenWindow={(context) => void openGrokWindow(context)}
       />
     );
   }
@@ -1047,6 +1467,10 @@ function App() {
               currentTime={currentTime}
               busyTarget={busyTrade?.eventId === event.id ? busyTrade.target : undefined}
               onTrade={(item, target) => void openTrade(item, target)}
+              onGrok={(item) => {
+                setGrokEvent(item);
+                setView('grok');
+              }}
               onCopy={(item) => void copyAddress(item)}
               onSource={openSource}
             />
@@ -1079,17 +1503,22 @@ function App() {
           {snapshot.events.length} 条预警
           {snapshot.connection.latencyMs != null ? ` · ${snapshot.connection.latencyMs}ms` : ''}
         </span>
-        <button
-          type="button"
-          onClick={() => {
-            if (isExtension) void sendCommand({ type: 'events:clear' }).then(() =>
-              setSnapshot((current) => ({ ...current, events: [] })),
-            );
-            else setSnapshot((current) => ({ ...current, events: [] }));
-          }}
-        >
-          清空
-        </button>
+        <div className="footer-actions">
+          <button type="button" onClick={() => void openGrokWindow()}>
+            <Bot size={13} /> AI 对话
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (isExtension) void sendCommand({ type: 'events:clear' }).then(() =>
+                setSnapshot((current) => ({ ...current, events: [] })),
+              );
+              else setSnapshot((current) => ({ ...current, events: [] }));
+            }}
+          >
+            清空
+          </button>
+        </div>
       </footer>
 
       {notice && <div className="toast">{notice}</div>}

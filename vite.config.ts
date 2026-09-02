@@ -14,6 +14,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         sidepanel: resolve(projectRoot, 'sidepanel.html'),
+        chat: resolve(projectRoot, 'chat.html'),
         background: resolve(projectRoot, 'src/background/index.ts'),
         windMainBridge: resolve(projectRoot, 'src/content/wind-main-bridge.ts'),
         windRelay: resolve(projectRoot, 'src/content/wind-relay.ts'),
